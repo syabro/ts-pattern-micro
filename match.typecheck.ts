@@ -161,6 +161,33 @@ const unionObjectPatternResult = match<Event>(event)
 
 assertEqual<typeof unionObjectPatternResult, "not-error" | "error">(true);
 
+// Multiple patterns in one `.with(...)` are type-checked as a union.
+const multiPatternPrimitiveResult = match<typeof primitive>(primitive)
+  .with(P.string, P.number, (value) => {
+    assertEqual<typeof value, string | number>(true);
+    return "string-or-number" as const;
+  })
+  .with(P.boolean, (value) => {
+    assertEqual<typeof value, boolean>(true);
+    return "boolean" as const;
+  })
+  .exhaustive();
+
+assertEqual<typeof multiPatternPrimitiveResult, "string-or-number" | "boolean">(true);
+
+const multiPatternObjectResult = match<Event>(event)
+  .with({ type: "ok" }, { type: "empty" }, (event) => {
+    assertEqual<Simplify<typeof event>, { type: "ok"; value: number } | { type: "empty" }>(true);
+    return "not-error" as const;
+  })
+  .with({ type: "error" }, (event) => {
+    assertEqual<Simplify<typeof event>, { type: "error"; error: string }>(true);
+    return "error" as const;
+  })
+  .exhaustive();
+
+assertEqual<typeof multiPatternObjectResult, "not-error" | "error">(true);
+
 const notUnionResult = match<typeof primitive>(primitive)
   .with(P.not(P.union(P.string, P.number)), (value) => {
     assertEqual<typeof value, boolean>(true);
@@ -336,6 +363,12 @@ P.union("ok", P.when((value: unknown): value is string => typeof value === "stri
 
 // @ts-expect-error P.union does not support custom P.when guards inside nested patterns
 P.union({ value: P.when(() => true) }, "ok");
+
+// @ts-expect-error multiple-pattern with does not support custom P.when guards
+match<string>("ok").with("ok", P.when((value: unknown): value is string => typeof value === "string"), () => "bad");
+
+// @ts-expect-error multiple-pattern with does not support custom P.when guards inside nested patterns
+match<{ value: string } | "ok">({ value: "ok" }).with({ value: P.when(() => true) }, "ok", () => "bad");
 
 declare const fn: () => number;
 

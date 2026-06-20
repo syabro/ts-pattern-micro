@@ -45,12 +45,21 @@ const result = match(value as number)
   .otherwise(() => "non-zero");
 ```
 
-Use `P.union(...)` to group several patterns into one branch:
+Pass several patterns to `.with(...)` when one branch should handle any of them:
 
 ```ts
 const result = match(event as Event)
-  .with(P.union({ type: "ok" }, { type: "empty" }), () => "not an error")
+  .with({ type: "ok" }, { type: "empty" }, () => "not an error")
   .with({ type: "error" }, (event) => event.error)
+  .exhaustive();
+```
+
+Use `P.union(...)` when grouping patterns is clearer as a nested pattern:
+
+```ts
+const result = match(value as string | number | boolean)
+  .with(P.union(P.string, P.number), () => "string or number")
+  .with(P.boolean, () => "boolean")
   .exhaustive();
 ```
 
@@ -80,6 +89,7 @@ const message = match(value as unknown)
 - array guard: `P.array`
 - class guard: `P.instanceOf(...)`
 - wildcard: `P._`
+- multiple patterns in one branch: `.with(a, b, handler)`
 - union patterns: `P.union(...)`
 - negated patterns: `P.not(...)`
 - guards: `P.when(...)`, `.when(...)`

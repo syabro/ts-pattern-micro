@@ -154,9 +154,16 @@ describe("match", () => {
     expect(match<"idle" | "loading" | "error">("idle").with(P.union(P.not("error"), "error"), () => "covered").exhaustive()).toBe("covered");
   });
 
-  test("rejects P.when inside P.not and P.union", () => {
+  test("matches multiple patterns in one with", () => {
+    expect(match<"idle" | "loading" | "error">("loading").with("idle", "loading", () => "pending").with("error", () => "error").exhaustive()).toBe("pending");
+    expect(match<Event>({ type: "empty" }).with({ type: "ok" }, { type: "empty" }, () => "not-error").with({ type: "error" }, () => "error").exhaustive()).toBe("not-error");
+    expect(match<string | number | boolean>(123).with(P.string, P.number, (value) => typeof value).with(P.boolean, () => "boolean").exhaustive()).toBe("number");
+  });
+
+  test("rejects P.when inside P.not, P.union, and multiple-pattern with", () => {
     expect(() => P.not(P.when(() => true) as never)).toThrow("P.not does not support P.when patterns");
     expect(() => P.union("ok", P.when(() => true) as never)).toThrow("P.union does not support P.when patterns");
+    expect(() => match<string>("ok").with("ok", P.when(() => true) as never, () => "bad")).toThrow("P.union does not support P.when patterns");
   });
 
   test("matches null and undefined", () => {

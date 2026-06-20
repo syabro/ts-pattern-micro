@@ -188,6 +188,11 @@ type HasInvalidSpecial<Ptn> =
   false;
 
 type ValidNotInput<Ptn> = HasCustomGuard<Ptn> extends true ? never : Ptn;
+type ValidMultiPattern<T, Ptn> = ValidNotInput<Ptn> extends never ? never : ValidPattern<T, Ptn>;
+type ValidMultiPatterns<T, Patterns extends readonly unknown[]> = { [K in keyof Patterns]: ValidMultiPattern<T, Patterns[K]> };
+
+// Multiple `.with(a, b, handler)` patterns are handled as a union pattern.
+type MultiPattern<Patterns extends readonly unknown[]> = UnionPattern<Patterns>;
 
 type Covered<T, Ptn> = HasBooleanGuard<Ptn> extends true ? never : Narrow<T, Ptn>;
 type ValidPattern<T, Ptn> = HasInvalidSpecial<Ptn> extends true ? never : IsNever<Narrow<T, Ptn>> extends true ? never : Ptn;
@@ -203,6 +208,10 @@ export type Matcher<Remaining, Out = never> = {
     pattern: ValidPattern<Remaining, Ptn>,
     handler: (value: Narrow<Remaining, Ptn>) => R,
   ): Matcher<Exclude<Remaining, Covered<Remaining, Ptn>>, Out | R>;
+
+  with<const Patterns extends readonly [Pattern<Remaining>, Pattern<Remaining>, ...Pattern<Remaining>[]], R>(
+    ...args: [...patterns: ValidMultiPatterns<Remaining, Patterns>, handler: (value: NarrowUnion<Remaining, Patterns>) => R]
+  ): Matcher<Exclude<Remaining, Covered<Remaining, MultiPattern<Patterns>>>, Out | R>;
 
   when<N extends Remaining, R>(
     guard: (value: Remaining) => value is N,
@@ -233,7 +242,10 @@ export function match<T>(value: T): Matcher<T> {
   const findMatch = () => cases.find((item) => item.guard ? item.guard(value) : matches(item.pattern, value));
 
   const api = {
-    with(pattern: unknown, handler: (value: unknown) => unknown) {
+    with(...args: unknown[]) {
+      const handler = args[args.length - 1] as (value: unknown) => unknown;
+      const patterns = args.slice(0, -1);
+      const pattern = patterns.length === 1 ? patterns[0] : union(...patterns as [unknown, ...unknown[]]);
       cases.push({ pattern, handler });
       return api;
     },
