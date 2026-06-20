@@ -151,35 +151,35 @@ This is not full `ts-pattern`. It stays small on purpose.
 
 ### Matching order and exhaustiveness
 
-Cases run top to bottom. The first match wins.
-
-`.otherwise(...)` runs when no case matches.
-
-`.exhaustive()` throws `NonExhaustiveError` when no case matches. The error stores the unmatched value in `error.value`.
+- Cases run top to bottom.
+- The first matching case wins.
+- `.otherwise(...)` runs when no case matches.
+- `.exhaustive()` throws `NonExhaustiveError` when no case matches.
+- The unmatched value is available as `error.value`.
 
 ### Equality and object patterns
 
-Primitive equality uses `Object.is`, so `NaN` matches `NaN`, but `0` does not match `-0`.
-
-Object patterns are partial: `{ a: 1 }` matches `{ a: 1, b: 2 }`.
-
-Object pattern keys must exist on the value. `{ a: P._ }` does not match `{}`.
-
-Object patterns do not match arrays.
+- Primitive equality uses `Object.is`.
+- `NaN` matches `NaN`.
+- `0` does not match `-0`.
+- Object patterns are partial: `{ a: 1 }` matches `{ a: 1, b: 2 }`.
+- Object pattern keys must exist on the value: `{ a: P._ }` does not match `{}`.
+- Object patterns do not match arrays.
 
 ### Type narrowing
 
-Use TypeScript type predicates when a guard should narrow types:
+- Use TypeScript type predicates when a guard should narrow types:
 
-```ts
-P.when((value): value is string => typeof value === "string")
-```
+  ```ts
+  P.when((value): value is string => typeof value === "string")
+  ```
 
-Boolean guards only affect runtime. They do not prove exhaustiveness.
-
-`P.union(...)` and `P.not(...)` support literals, objects, tuples, and built-in `P.*` guards. They intentionally do not support custom `P.when(...)` guards.
-
-`P.array` only checks that the value is an array. It does not validate item types.
+- Boolean guards only affect runtime.
+- Boolean guards do not prove exhaustiveness.
+- `P.union(...)` and `P.not(...)` support literals, objects, tuples, and built-in `P.*` guards.
+- `P.union(...)` and `P.not(...)` do not support custom `P.when(...)` guards.
+- `P.array` only checks that the value is an array.
+- `P.array` does not validate item types.
 
 ## Development check
 
