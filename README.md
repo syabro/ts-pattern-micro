@@ -1,5 +1,7 @@
 # ts-pattern-micro
 
+**YOU ONLY NEED ONE FILE FROM THIS REPOSITORY: `match.ts`.**
+
 Single-file, zero-dependency pattern matching for TypeScript.
 
 Use it when you want `ts-pattern`-style matching without adding a package dependency or build step.
