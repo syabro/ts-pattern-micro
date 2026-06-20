@@ -41,7 +41,7 @@ namespace symbols {
 class NonExhaustiveError extends Error {}
 
 const unsupported = (name: string) => (..._args: unknown[]) => {
-  throw new Error(`Unsupported ts-pattern API in micromatch-one-file: ${name}`);
+  throw new Error(`Unsupported ts-pattern API in ts-pattern-micro: ${name}`);
 };
 
 const P = Object.assign(Object.create(null), localP, {

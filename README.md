@@ -1,6 +1,6 @@
-# micromatch-one-file
+# ts-pattern-micro
 
-Tiny `ts-pattern`-style matcher meant to be copied into a project as one file.
+Single-file, zero-dependency pattern matching for TypeScript. Copy `match.ts` into your project.
 
 Copy `match.ts`, then use:
 
