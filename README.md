@@ -1,8 +1,16 @@
 # ts-pattern-micro
 
-Single-file, zero-dependency pattern matching for TypeScript. Copy `match.ts` into your project.
+Single-file, zero-dependency pattern matching for TypeScript.
 
-Copy `match.ts`, then use:
+## Install
+
+No npm package needed. Download the file into your project:
+
+```bash
+wget -O match.ts https://raw.githubusercontent.com/syabro/ts-pattern-micro/main/match.ts
+```
+
+Then use:
 
 ```ts
 import { match, P } from "./match";
@@ -19,14 +27,22 @@ const result = match(event as Event)
   .exhaustive();
 ```
 
-Use type predicates when a guard should narrow TypeScript types:
+Use built-in guards for common primitive cases:
 
 ```ts
 const result = match(value as string | number | boolean)
-  .when((value): value is string => typeof value === "string", (value) => value.toUpperCase())
+  .with(P.string, (value) => value.toUpperCase())
   .with(P.number, (value) => value.toFixed(2))
   .with(P.boolean, (value) => value)
   .exhaustive();
+```
+
+Use `P.when(...)` for custom conditions:
+
+```ts
+const result = match(value as number)
+  .with(P.when((value): value is 0 => value === 0), () => "zero")
+  .otherwise(() => "non-zero");
 ```
 
 ## What it supports
