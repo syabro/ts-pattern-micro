@@ -104,6 +104,18 @@ const message = match(value as unknown)
 - pattern guards: `.with(pattern, guard, handler)`
 - union exhaustiveness through `.exhaustive()`
 
+## What it intentionally does not support
+
+This is not full `ts-pattern`. It stays small on purpose.
+
+- `P.select(...)`: read values directly in the handler instead.
+- `P.array(pattern)` and variadic array patterns: use `P.array` for “any array”, tuple patterns for fixed shapes, or `P.when(...)` for item validation.
+- `P.record(...)`: use object patterns for known keys, or `P.when(...)` for dynamic key/value checks.
+- `P.optional(...)`: match `undefined` explicitly, or use `P.union(...)` / `P.nullish` where that fits.
+- `P.intersection(...)`: merge object patterns when possible, or use `.with(pattern, guard, handler)` for extra conditions.
+- Chainable guards like `P.string.startsWith(...)` or `P.number.between(...)`: use `P.when(...)`.
+- `.returnType(...)` and `.exhaustive(fallback)`: use normal TypeScript return inference and `.otherwise(...)`.
+
 ## Notes
 
 - Cases run top to bottom; the first match wins.

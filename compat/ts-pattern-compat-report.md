@@ -36,20 +36,3 @@ Most failures are expected because this micro-library intentionally does not imp
 | Chainable string/number/bigint guards | 20+ | No `.startsWith()`, `.between()`, `.optional()`, `.select()`, etc. |
 | `.returnType()` and exhaustive fallback helpers | 4+ | Not implemented. |
 
-## Actually interesting semantic mismatches
-
-These are not just missing APIs:
-
-1. Runtime non-exhaustive error text differs from `ts-pattern`.
-
-   This library throws `NonExhaustiveError`, but uses a shorter message.
-
-2. `.with(pattern, guard, handler)` supports one guard.
-
-   `ts-pattern` supports richer guard interactions with selection and more advanced narrowing.
-
-## Recommendation
-
-Do not chase full parity. The failures are mostly exactly the features we chose not to include.
-
-The key-existence mismatch found in the first run is fixed: `{ key: P._ }` and `{ key: undefined }` no longer match objects where `key` is missing.
