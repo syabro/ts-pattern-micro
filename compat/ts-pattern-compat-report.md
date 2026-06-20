@@ -5,7 +5,7 @@ Generated all upstream `ts-pattern` test files into one curiosity-only harness:
 - source repo: `gvergnaud/ts-pattern`, current default branch clone in `/tmp/ts-pattern-upstream`
 - generated file: `compat/ts-pattern-all.generated.ts`
 - upstream test files included: 48
-- generated lines: 13,379
+- generated lines: 13,383
 
 Run command:
 
@@ -16,8 +16,8 @@ bun test ./compat/ts-pattern-all.generated.ts --reporter=junit --reporter-outfil
 Result:
 
 - total tests: 453
-- pass: 252
-- fail: 201
+- pass: 264
+- fail: 189
 
 This is a runtime compatibility harness, not a faithful type-test port. Bun does not typecheck tests, and the generated file includes small shims for upstream-only helpers and unsupported `ts-pattern` APIs so the suite can run far enough to show feature gaps.
 
@@ -30,7 +30,7 @@ Most failures are expected because this micro-library intentionally does not imp
 | `P.select` | 35 | Selection/extraction is not implemented. |
 | `P.array(pattern)` / variadic arrays | 23 | Only bare `P.array` and exact array/tuple patterns are supported. |
 | `P.record` | 22 | Record/key-value pattern matching is not implemented. |
-| `P.not` | 19 | Negated patterns are not implemented. |
+| `P.not` edge cases | 6 | Basic negated patterns are supported; full `ts-pattern` negation semantics are not. |
 | `P.union` / `P.intersection` | 17+ | Pattern combinators are not implemented. |
 | `P.instanceOf` | 8 | Class instance matching is not implemented. |
 | Chainable string/number/bigint guards | 20+ | No `.startsWith()`, `.between()`, `.optional()`, `.select()`, etc. |

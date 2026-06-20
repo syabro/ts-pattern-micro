@@ -49,7 +49,7 @@ const P = Object.assign(Object.create(null), localP, {
   nullish: localP.when((value: unknown): value is null | undefined => value === null || value === undefined),
   nonNullable: localP.when((value: unknown) => value !== null && value !== undefined),
   select: unsupported('P.select'),
-  not: unsupported('P.not'),
+  not: localP.not,
   optional: unsupported('P.optional'),
   union: unsupported('P.union'),
   intersection: unsupported('P.intersection'),

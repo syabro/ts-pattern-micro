@@ -45,6 +45,15 @@ const result = match(value as number)
   .otherwise(() => "non-zero");
 ```
 
+Use `P.not(...)` to cover everything except one pattern:
+
+```ts
+const result = match(event as Event)
+  .with(P.not({ type: "error" }), () => "not an error")
+  .with({ type: "error" }, (event) => event.error)
+  .exhaustive();
+```
+
 ## What it supports
 
 - primitive patterns: strings, numbers, booleans, bigint, symbols, `null`, `undefined`
@@ -52,6 +61,7 @@ const result = match(value as number)
 - tuple/array patterns: `["set", P._]`
 - array guard: `P.array`
 - wildcard: `P._`
+- negated patterns: `P.not(...)`
 - guards: `P.when(...)`, `.when(...)`
 - union exhaustiveness through `.exhaustive()`
 
@@ -61,6 +71,7 @@ const result = match(value as number)
 - Object patterns are partial: `{ a: 1 }` matches `{ a: 1, b: 2 }`, but not arrays.
 - Equality uses `Object.is`, so `NaN` matches `NaN`, but `0` does not match `-0`.
 - Boolean guards only affect runtime. Use a TypeScript type predicate if you want type narrowing.
+- `P.not(...)` supports literals, objects, tuples, and built-in `P.*` guards. It intentionally does not support custom `P.when(...)` guards.
 - `.exhaustive()` throws `Error("Non-exhaustive match")` at runtime if no case matches.
 - `P.array` only checks that the value is an array; it does not validate item types.
 - Plain arrays check length at runtime; tuples get stronger type checks.

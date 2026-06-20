@@ -106,6 +106,34 @@ const primitiveResult = match<typeof primitive>(primitive)
 
 assertEqual<typeof primitiveResult, string>(true);
 
+// `P.not(...)` narrows to the remaining primitive union and stays compatible with `.exhaustive()`.
+const notPrimitiveResult = match<typeof primitive>(primitive)
+  .with(P.not(P.string), (value) => {
+    assertEqual<typeof value, number | boolean>(true);
+    return "not-string" as const;
+  })
+  .with(P.string, (value) => {
+    assertEqual<typeof value, string>(true);
+    return "string" as const;
+  })
+  .exhaustive();
+
+assertEqual<typeof notPrimitiveResult, "not-string" | "string">(true);
+
+// `P.not(...)` also works with object patterns over discriminated unions.
+const notObjectPatternResult = match<Event>(event)
+  .with(P.not({ type: "error" }), (event) => {
+    assertEqual<Simplify<typeof event>, { type: "ok"; value: number } | { type: "empty" }>(true);
+    return "not-error" as const;
+  })
+  .with({ type: "error" }, (event) => {
+    assertEqual<Simplify<typeof event>, { type: "error"; error: string }>(true);
+    return "error" as const;
+  })
+  .exhaustive();
+
+assertEqual<typeof notObjectPatternResult, "not-error" | "error">(true);
+
 declare const unknownValue: unknown;
 
 // Built-in value guards also work from `unknown`.
@@ -226,6 +254,12 @@ booleanWhenOnly();
 
 // @ts-expect-error impossible guard pattern for an object input
 match<{ a: number }>({ a: 1 }).with(P.string, () => "bad");
+
+// @ts-expect-error P.not does not support custom P.when guards
+P.not(P.when((value: unknown): value is string => typeof value === "string"));
+
+// @ts-expect-error P.not does not support custom P.when guards inside nested patterns
+P.not({ value: P.when(() => true) });
 
 declare const fn: () => number;
 

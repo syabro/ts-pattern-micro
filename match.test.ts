@@ -130,6 +130,16 @@ describe("match", () => {
     expect(match<unknown>({ length: 2 }).with(P.array, (value) => value.length).otherwise(() => 0)).toBe(0);
   });
 
+  test("matches negated patterns", () => {
+    expect(match<"idle" | "error">("idle").with(P.not("error"), () => "not-error").with("error", () => "error").exhaustive()).toBe("not-error");
+    expect(match<Event>({ type: "ok", value: 1 }).with(P.not({ type: "error" }), () => "not-error").with({ type: "error" }, () => "error").exhaustive()).toBe("not-error");
+    expect(match<string | number>(123).with(P.not(P.string), (value) => value + 1).with(P.string, (value) => value.length).exhaustive()).toBe(124);
+  });
+
+  test("rejects P.when inside P.not", () => {
+    expect(() => P.not(P.when(() => true) as never)).toThrow("P.not does not support P.when patterns");
+  });
+
   test("matches null and undefined", () => {
     expect(match<null | string>(null).with(null, () => "null").otherwise(() => "other")).toBe("null");
     expect(match<undefined | string>(undefined).with(undefined, () => "undefined").otherwise(() => "other")).toBe("undefined");
