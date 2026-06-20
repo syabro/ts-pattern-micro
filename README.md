@@ -2,6 +2,8 @@
 
 Single-file, zero-dependency pattern matching for TypeScript.
 
+Use it when you want `ts-pattern`-style matching without adding a package dependency or build step.
+
 ## Install
 
 No npm package needed. Download the file into your project:
@@ -10,7 +12,7 @@ No npm package needed. Download the file into your project:
 wget -O match.ts https://raw.githubusercontent.com/syabro/ts-pattern-micro/main/match.ts
 ```
 
-Then use:
+## Quick start
 
 ```ts
 import { match, P } from "./match";
@@ -20,14 +22,27 @@ type Event =
   | { type: "error"; error: string }
   | { type: "empty" };
 
-const result = match(event as Event)
+declare const event: Event;
+
+const result = match(event)
   .with({ type: "ok" }, (event) => event.value)
   .with({ type: "error" }, (event) => event.error)
   .with({ type: "empty" }, () => null)
   .exhaustive();
 ```
 
-Use built-in guards for common primitive cases:
+The shape is always:
+
+```ts
+match(value).with(pattern, handler).otherwise(fallback)
+match(value).with(pattern, handler).exhaustive()
+```
+
+Cases run top to bottom. The first matching case wins.
+
+## Examples
+
+### Built-in guards
 
 ```ts
 const result = match(value as string | number | boolean)
@@ -37,7 +52,9 @@ const result = match(value as string | number | boolean)
   .exhaustive();
 ```
 
-Use `P.when(...)` for custom conditions:
+### Custom conditions
+
+Use `P.when(...)` when a built-in guard is not enough:
 
 ```ts
 const result = match(value as number)
@@ -45,42 +62,55 @@ const result = match(value as number)
   .otherwise(() => "non-zero");
 ```
 
+### Guarded handlers
+
 Add a guard after a pattern when the handler needs an extra condition:
 
 ```ts
-const result = match(event as Event)
+const result = match(event)
   .with({ type: "ok" }, (event) => event.value > 0, (event) => event.value)
   .otherwise(() => null);
 ```
 
-Pass several patterns to `.with(...)` when one branch should handle any of them:
+### Multiple patterns in one branch
 
 ```ts
-const result = match(event as Event)
+const result = match(event)
   .with({ type: "ok" }, { type: "empty" }, () => "not an error")
   .with({ type: "error" }, (event) => event.error)
   .exhaustive();
 ```
 
-Use `P.union(...)` when grouping patterns is clearer as a nested pattern:
+### Union patterns
+
+Use `P.union(...)` when the group is itself part of a larger pattern:
 
 ```ts
-const result = match(value as string | number | boolean)
-  .with(P.union(P.string, P.number), () => "string or number")
-  .with(P.boolean, () => "boolean")
+type State =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; data: string }
+  | { status: "error"; error: Error };
+
+declare const state: State;
+
+const result = match(state)
+  .with({ status: P.union("idle", "loading") }, () => "pending")
+  .with({ status: "success" }, (state) => state.data)
+  .with({ status: "error" }, (state) => state.error.message)
   .exhaustive();
 ```
 
-Use `P.not(...)` to cover everything except one pattern:
+### Negation
 
 ```ts
-const result = match(event as Event)
+const result = match(event)
   .with(P.not({ type: "error" }), () => "not an error")
   .with({ type: "error" }, (event) => event.error)
   .exhaustive();
 ```
 
-Use `P.instanceOf(...)` for classes:
+### Class instances
 
 ```ts
 const message = match(value as unknown)
@@ -89,22 +119,24 @@ const message = match(value as unknown)
   .otherwise(() => null);
 ```
 
-## What it supports
+## Supported
 
-- primitive patterns: strings, numbers, booleans, bigint, symbols, `null`, `undefined`
-- partial object patterns: `{ type: "ok" }`
-- tuple/array patterns: `["set", P._]`
-- array guard: `P.array`
-- class guard: `P.instanceOf(...)`
-- wildcard: `P._` or `P.any`
-- multiple patterns in one branch: `.with(a, b, handler)`
-- union patterns: `P.union(...)`
-- negated patterns: `P.not(...)`
-- guards: `P.when(...)`, `.when(...)`
-- pattern guards: `.with(pattern, guard, handler)`
-- union exhaustiveness through `.exhaustive()`
+- Primitive patterns: strings, numbers, booleans, bigint, symbols, `null`, `undefined`
+- Partial object patterns: `{ type: "ok" }`
+- Tuple and exact array patterns: `["set", P._]`
+- Wildcard: `P._` or `P.any`
+- Built-in guards: `P.string`, `P.number`, `P.boolean`, `P.bigint`, `P.symbol`, `P.null`, `P.undefined`, `P.nullish`
+- Array guard: `P.array` for “any array”
+- Class guard: `P.instanceOf(...)`
+- Custom guard: `P.when(...)`
+- Negation: `P.not(...)`
+- Union patterns: `P.union(...)`
+- Multiple patterns in one branch: `.with(a, b, handler)`
+- Pattern guards: `.with(pattern, guard, handler)`
+- Fallback: `.otherwise(...)`
+- Exhaustiveness: `.exhaustive()`
 
-## What it intentionally does not support
+## Out of scope
 
 This is not full `ts-pattern`. It stays small on purpose.
 
@@ -114,19 +146,40 @@ This is not full `ts-pattern`. It stays small on purpose.
 - `P.optional(...)`: match `undefined` explicitly, or use `P.union(...)` / `P.nullish` where that fits.
 - `P.intersection(...)`: merge object patterns when possible, or use `.with(pattern, guard, handler)` for extra conditions.
 - Chainable guards like `P.string.startsWith(...)` or `P.number.between(...)`: use `P.when(...)`.
-- `.returnType(...)` and `.exhaustive(fallback)`: use normal TypeScript return inference and `.otherwise(...)`.
 
-## Notes
+## Semantics
 
-- Cases run top to bottom; the first match wins.
-- Object patterns are partial: `{ a: 1 }` matches `{ a: 1, b: 2 }`, but not arrays.
-- Equality uses `Object.is`, so `NaN` matches `NaN`, but `0` does not match `-0`.
-- `P.nullish` matches `null | undefined`.
-- Boolean guards only affect runtime. Use a TypeScript type predicate if you want type narrowing.
-- `P.union(...)` and `P.not(...)` support literals, objects, tuples, and built-in `P.*` guards. They intentionally do not support custom `P.when(...)` guards.
-- `.exhaustive()` throws `NonExhaustiveError` at runtime if no case matches. The error stores the unmatched `value`.
-- `P.array` only checks that the value is an array; it does not validate item types.
-- Plain arrays check length at runtime; tuples get stronger type checks.
+### Matching order and exhaustiveness
+
+Cases run top to bottom. The first match wins.
+
+`.otherwise(...)` runs when no case matches.
+
+`.exhaustive()` throws `NonExhaustiveError` when no case matches. The error stores the unmatched value in `error.value`.
+
+### Equality and object patterns
+
+Primitive equality uses `Object.is`, so `NaN` matches `NaN`, but `0` does not match `-0`.
+
+Object patterns are partial: `{ a: 1 }` matches `{ a: 1, b: 2 }`.
+
+Object pattern keys must exist on the value. `{ a: P._ }` does not match `{}`.
+
+Object patterns do not match arrays.
+
+### Type narrowing
+
+Use TypeScript type predicates when a guard should narrow types:
+
+```ts
+P.when((value): value is string => typeof value === "string")
+```
+
+Boolean guards only affect runtime. They do not prove exhaustiveness.
+
+`P.union(...)` and `P.not(...)` support literals, objects, tuples, and built-in `P.*` guards. They intentionally do not support custom `P.when(...)` guards.
+
+`P.array` only checks that the value is an array. It does not validate item types.
 
 ## Development check
 
