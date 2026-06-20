@@ -16,8 +16,8 @@ bun test ./compat/ts-pattern-all.generated.ts --reporter=junit --reporter-outfil
 Result:
 
 - total tests: 453
-- pass: 280
-- fail: 173
+- pass: 283
+- fail: 170
 
 This is a runtime compatibility harness, not a faithful type-test port. Bun does not typecheck tests, and the generated file includes small shims for upstream-only helpers and unsupported `ts-pattern` APIs so the suite can run far enough to show feature gaps.
 
@@ -30,7 +30,7 @@ Most failures are expected because this micro-library intentionally does not imp
 | `P.select` | 35 | Selection/extraction is not implemented. |
 | `P.array(pattern)` / variadic arrays | 26 | Only bare `P.array` and exact array/tuple patterns are supported. |
 | `P.record` | 26 | Record/key-value pattern matching is not implemented. |
-| `P.not` edge cases | 6 | Basic negated patterns are supported; full `ts-pattern` negation semantics are not. |
+| `P.not` edge cases | 4 | Basic negated patterns are supported; full `ts-pattern` negation semantics are not. |
 | `P.union` edge cases / `P.intersection` | 10+ | Basic `P.union(...)` is supported; full union semantics and intersection are not. |
 | `P.instanceOf` edge cases | 2 | Basic class matching is supported; full `ts-pattern` instance semantics are not. |
 | Chainable string/number/bigint guards | 20+ | No `.startsWith()`, `.between()`, `.optional()`, `.select()`, etc. |
@@ -40,13 +40,13 @@ Most failures are expected because this micro-library intentionally does not imp
 
 These are not just missing APIs:
 
-1. Runtime non-exhaustive error is a plain `Error`, not `NonExhaustiveError`.
+1. Runtime non-exhaustive error text differs from `ts-pattern`.
 
-   This is probably fine for the micro-library, but it differs from `ts-pattern`.
+   This library throws `NonExhaustiveError`, but uses a shorter message.
 
-2. `.with(pattern, guard, handler)` is not supported.
+2. `.with(pattern, guard, handler)` supports one guard.
 
-   `ts-pattern` supports guard clauses inside `.with`; this library only supports `.when(...)` as a separate chain step.
+   `ts-pattern` supports richer guard interactions with selection and more advanced narrowing.
 
 ## Recommendation
 

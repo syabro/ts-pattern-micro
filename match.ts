@@ -8,6 +8,16 @@ const notSafeGuardTag = Symbol("match.notSafeGuard");
 
 export type Wildcard = typeof wildcard;
 
+export class NonExhaustiveError extends Error {
+  readonly value: unknown;
+
+  constructor(value: unknown) {
+    super(`Non-exhaustive match: no case matched ${formatValue(value)}`);
+    this.name = "NonExhaustiveError";
+    this.value = value;
+  }
+}
+
 /** Guard pattern created by `P.when` or one of the built-in `P.*` guards. */
 export type GuardPattern<U = unknown, Narrows extends boolean = true, SupportsNot extends boolean = false> = {
   readonly [guardTag]: true;
@@ -88,6 +98,8 @@ function union<const Patterns extends readonly [unknown, ...unknown[]]>(...patte
 export const P = {
   /** Matches any value. */
   _: wildcard,
+  /** Alias for `P._`. */
+  any: wildcard,
   /** Creates a guard pattern. */
   when,
   /** Negates a pattern, except custom `P.when(...)` guards. */
@@ -103,6 +115,7 @@ export const P = {
   symbol: builtin((value: unknown): value is symbol => typeof value === "symbol"),
   null: builtin((value: unknown): value is null => value === null),
   undefined: builtin((value: unknown): value is undefined => value === undefined),
+  nullish: builtin((value: unknown): value is null | undefined => value === null || value === undefined),
   /** Matches any array. It does not validate item types. */
   array: builtin((value: unknown): value is readonly unknown[] => Array.isArray(value)),
 } as const;
@@ -209,6 +222,18 @@ export type Matcher<Remaining, Out = never> = {
     handler: (value: Narrow<Remaining, Ptn>) => R,
   ): Matcher<Exclude<Remaining, Covered<Remaining, Ptn>>, Out | R>;
 
+  with<const Ptn extends Pattern<Remaining>, N extends Narrow<Remaining, Ptn>, R>(
+    pattern: ValidPattern<Remaining, Ptn>,
+    guard: (value: Narrow<Remaining, Ptn>) => value is N,
+    handler: (value: N) => R,
+  ): Matcher<Exclude<Remaining, N>, Out | R>;
+
+  with<const Ptn extends Pattern<Remaining>, R>(
+    pattern: ValidPattern<Remaining, Ptn>,
+    guard: (value: Narrow<Remaining, Ptn>) => boolean,
+    handler: (value: Narrow<Remaining, Ptn>) => R,
+  ): Matcher<Remaining, Out | R>;
+
   with<const Patterns extends readonly [Pattern<Remaining>, Pattern<Remaining>, ...Pattern<Remaining>[]], R>(
     ...args: [...patterns: ValidMultiPatterns<Remaining, Patterns>, handler: (value: NarrowUnion<Remaining, Patterns>) => R]
   ): Matcher<Exclude<Remaining, Covered<Remaining, MultiPattern<Patterns>>>, Out | R>;
@@ -229,29 +254,42 @@ export type Matcher<Remaining, Out = never> = {
   exhaustive: [Remaining] extends [never] ? () => Out : NonExhaustive<Remaining>;
 };
 
-type Case = {
-  pattern?: unknown;
-  guard?: (value: unknown) => boolean;
-  handler: (value: unknown) => unknown;
-};
+type Case =
+  | {
+      kind: "pattern";
+      pattern: unknown;
+      guard?: (value: unknown) => boolean;
+      handler: (value: unknown) => unknown;
+    }
+  | {
+      kind: "guard";
+      guard: (value: unknown) => boolean;
+      handler: (value: unknown) => unknown;
+    };
 
 /** Starts a match chain. Cases are checked in order; the first match wins. */
 export function match<T>(value: T): Matcher<T> {
   const cases: Case[] = [];
 
-  const findMatch = () => cases.find((item) => item.guard ? item.guard(value) : matches(item.pattern, value));
+  const findMatch = () => cases.find((item) => item.kind === "pattern" ? matches(item.pattern, value) && (!item.guard || item.guard(value)) : item.guard(value));
 
   const api = {
     with(...args: unknown[]) {
       const handler = args[args.length - 1] as (value: unknown) => unknown;
+
+      if (args.length === 3 && typeof args[1] === "function") {
+        cases.push({ kind: "pattern", pattern: args[0], guard: args[1] as (value: unknown) => boolean, handler });
+        return api;
+      }
+
       const patterns = args.slice(0, -1);
       const pattern = patterns.length === 1 ? patterns[0] : union(...patterns as [unknown, ...unknown[]]);
-      cases.push({ pattern, handler });
+      cases.push({ kind: "pattern", pattern, handler });
       return api;
     },
 
     when(guard: (value: unknown) => boolean, handler: (value: unknown) => unknown) {
-      cases.push({ guard, handler });
+      cases.push({ kind: "guard", guard, handler });
       return api;
     },
 
@@ -263,7 +301,7 @@ export function match<T>(value: T): Matcher<T> {
     exhaustive() {
       const item = findMatch();
       if (item) return item.handler(value);
-      throw new Error("Non-exhaustive match");
+      throw new NonExhaustiveError(value);
     },
   };
 
@@ -285,6 +323,18 @@ function matches(pattern: unknown, value: unknown): boolean {
   }
 
   return Object.is(pattern, value);
+}
+
+function formatValue(value: unknown): string {
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "bigint") return `${value}n`;
+  if (typeof value === "symbol") return value.toString();
+
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
 }
 
 function isObject(value: unknown): value is Record<PropertyKey, unknown> {

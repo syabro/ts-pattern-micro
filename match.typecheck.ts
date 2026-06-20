@@ -251,11 +251,34 @@ match<unknown>(unknownValue)
     assertEqual<typeof value, undefined>(true);
     return value;
   })
+  .with(P.nullish, (value) => {
+    assertEqual<typeof value, null | undefined>(true);
+    return value;
+  })
   .with(P.array, (value) => {
     assertEqual<typeof value, readonly unknown[]>(true);
     return value;
   })
+  .with(P.any, (value) => {
+    assertEqual<typeof value, unknown>(true);
+    return value;
+  })
   .otherwise((value) => value);
+
+const nullableString = null as unknown as string | null | undefined;
+
+const nullishResult = match<typeof nullableString>(nullableString)
+  .with(P.nullish, (value) => {
+    assertEqual<typeof value, null | undefined>(true);
+    return "nullish" as const;
+  })
+  .with(P.not(P.nullish), (value) => {
+    assertEqual<typeof value, string>(true);
+    return value;
+  })
+  .exhaustive();
+
+assertEqual<typeof nullishResult, "nullish" | string>(true);
 
 const arrayOrString = null as unknown as readonly unknown[] | string;
 
@@ -272,6 +295,36 @@ const arrayExhaustiveResult = match<typeof arrayOrString>(arrayOrString)
   .exhaustive();
 
 assertEqual<typeof arrayExhaustiveResult, number>(true);
+
+declare const choice: "a" | "b" | "c";
+
+// `.with(pattern, guard, handler)` runs the handler only when both pattern and guard match.
+const patternGuardResult = match<typeof choice>(choice)
+  .with(
+    P.any,
+    (value): value is "a" | "b" => value === "a" || value === "b",
+    (value) => {
+      assertEqual<typeof value, "a" | "b">(true);
+      return "first-two" as const;
+    },
+  )
+  .with("c", (value) => {
+    assertEqual<typeof value, "c">(true);
+    return "last" as const;
+  })
+  .exhaustive();
+
+assertEqual<typeof patternGuardResult, "first-two" | "last">(true);
+
+// `.with(pattern, booleanGuard, handler)` does not prove that the pattern branch is fully covered.
+const guardedObjectPatternOnly = match<Event>(event)
+  .with({ type: "ok" }, (event) => event.value > 0, (event) => event.value)
+  .with({ type: "error" }, (event) => event.error)
+  .with({ type: "empty" }, () => null)
+  .exhaustive;
+
+// @ts-expect-error boolean guards inside `.with(...)` do not prove exhaustiveness
+guardedObjectPatternOnly();
 
 // `.when(type predicate, handler)` narrows Remaining for `.otherwise()`.
 const predicateWhenResult = match<typeof primitive>(primitive)

@@ -2,7 +2,7 @@
 // Do not include this file in the normal project check; run it explicitly.
 
 import { describe, expect, it } from 'bun:test';
-import { match as localMatch, P as localP, type Pattern as LocalPattern } from '../match';
+import { match as localMatch, NonExhaustiveError, P as localP, type Pattern as LocalPattern } from '../match';
 
 type Equal<A, B> =
   (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2)
@@ -38,15 +38,13 @@ namespace symbols {
   export type anonymousSelectKey = '@ts-pattern/anonymous-select-key';
 }
 
-class NonExhaustiveError extends Error {}
-
 const unsupported = (name: string) => (..._args: unknown[]) => {
   throw new Error(`Unsupported ts-pattern API in ts-pattern-micro: ${name}`);
 };
 
 const P = Object.assign(Object.create(null), localP, {
-  any: localP._,
-  nullish: localP.when((value: unknown): value is null | undefined => value === null || value === undefined),
+  any: localP.any,
+  nullish: localP.nullish,
   nonNullable: localP.when((value: unknown) => value !== null && value !== undefined),
   select: unsupported('P.select'),
   not: localP.not,

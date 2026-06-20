@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { match, P } from "./match";
+import { match, NonExhaustiveError, P } from "./match";
 
 type Event =
   | { type: "ok"; value: number }
@@ -126,6 +126,8 @@ describe("match", () => {
     expect(match<unknown>(token).with(P.symbol, (value) => value === token).otherwise(() => false)).toBe(true);
     expect(match<unknown>(null).with(P.null, () => "null").otherwise(() => "other")).toBe("null");
     expect(match<unknown>(undefined).with(P.undefined, () => "undefined").otherwise(() => "other")).toBe("undefined");
+    expect(match<unknown>(null).with(P.nullish, () => "nullish").otherwise(() => "other")).toBe("nullish");
+    expect(match<unknown>(undefined).with(P.nullish, () => "nullish").otherwise(() => "other")).toBe("nullish");
     expect(match<unknown>([1, 2]).with(P.array, (value) => value.length).otherwise(() => 0)).toBe(2);
     expect(match<unknown>({ length: 2 }).with(P.array, (value) => value.length).otherwise(() => 0)).toBe(0);
   });
@@ -147,6 +149,10 @@ describe("match", () => {
     expect(match<Error | Date>(new Date(0)).with(P.not(P.instanceOf(Error)), (value) => value.toISOString()).with(P.instanceOf(Error), (value) => value.message).exhaustive()).toBe("1970-01-01T00:00:00.000Z");
   });
 
+  test("matches P.any alias", () => {
+    expect(match<unknown>("hello").with(P.any, () => "anything").otherwise(() => "fallback")).toBe("anything");
+  });
+
   test("matches union patterns", () => {
     expect(match<"idle" | "loading" | "error">("loading").with(P.union("idle", "loading"), () => "pending").with("error", () => "error").exhaustive()).toBe("pending");
     expect(match<Event>({ type: "empty" }).with(P.union({ type: "ok" }, { type: "empty" }), () => "not-error").with({ type: "error" }, () => "error").exhaustive()).toBe("not-error");
@@ -158,6 +164,14 @@ describe("match", () => {
     expect(match<"idle" | "loading" | "error">("loading").with("idle", "loading", () => "pending").with("error", () => "error").exhaustive()).toBe("pending");
     expect(match<Event>({ type: "empty" }).with({ type: "ok" }, { type: "empty" }, () => "not-error").with({ type: "error" }, () => "error").exhaustive()).toBe("not-error");
     expect(match<string | number | boolean>(123).with(P.string, P.number, (value) => typeof value).with(P.boolean, () => "boolean").exhaustive()).toBe("number");
+  });
+
+  test("matches pattern plus guard in one with", () => {
+    const positive = { type: "ok" as const, value: 2 };
+    const negative = { type: "ok" as const, value: -1 };
+
+    expect(match<Event>(positive).with({ type: "ok" }, (value) => value.value > 0, () => "positive").with({ type: "ok" }, () => "other-ok").with({ type: "error" }, () => "error").with({ type: "empty" }, () => "empty").exhaustive()).toBe("positive");
+    expect(match<Event>(negative).with({ type: "ok" }, (value) => value.value > 0, () => "positive").with({ type: "ok" }, () => "other-ok").with({ type: "error" }, () => "error").with({ type: "empty" }, () => "empty").exhaustive()).toBe("other-ok");
   });
 
   test("rejects P.when inside P.not, P.union, and multiple-pattern with", () => {
@@ -232,12 +246,20 @@ describe("match", () => {
     expect(match<object | null>(null).with({}, () => "object").otherwise(() => "other")).toBe("other");
   });
 
-  test("throws for runtime non-exhaustive exhaustive call", () => {
+  test("throws NonExhaustiveError for runtime non-exhaustive exhaustive call", () => {
     const unsafe = match<Event>({ type: "empty" })
       .with({ type: "ok" }, (event) => event.value)
       .with({ type: "error" }, (event) => event.error)
       .exhaustive as unknown as () => unknown;
 
-    expect(unsafe).toThrow("Non-exhaustive match");
+    expect(unsafe).toThrow(NonExhaustiveError);
+    expect(unsafe).toThrow("Non-exhaustive match: no case matched");
+
+    try {
+      unsafe();
+    } catch (error) {
+      expect(error).toBeInstanceOf(NonExhaustiveError);
+      expect((error as NonExhaustiveError).value).toEqual({ type: "empty" });
+    }
   });
 });
