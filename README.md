@@ -45,6 +45,15 @@ const result = match(value as number)
   .otherwise(() => "non-zero");
 ```
 
+Use `P.union(...)` to group several patterns into one branch:
+
+```ts
+const result = match(event as Event)
+  .with(P.union({ type: "ok" }, { type: "empty" }), () => "not an error")
+  .with({ type: "error" }, (event) => event.error)
+  .exhaustive();
+```
+
 Use `P.not(...)` to cover everything except one pattern:
 
 ```ts
@@ -71,6 +80,7 @@ const message = match(value as unknown)
 - array guard: `P.array`
 - class guard: `P.instanceOf(...)`
 - wildcard: `P._`
+- union patterns: `P.union(...)`
 - negated patterns: `P.not(...)`
 - guards: `P.when(...)`, `.when(...)`
 - union exhaustiveness through `.exhaustive()`
@@ -81,7 +91,7 @@ const message = match(value as unknown)
 - Object patterns are partial: `{ a: 1 }` matches `{ a: 1, b: 2 }`, but not arrays.
 - Equality uses `Object.is`, so `NaN` matches `NaN`, but `0` does not match `-0`.
 - Boolean guards only affect runtime. Use a TypeScript type predicate if you want type narrowing.
-- `P.not(...)` supports literals, objects, tuples, and built-in `P.*` guards. It intentionally does not support custom `P.when(...)` guards.
+- `P.union(...)` and `P.not(...)` support literals, objects, tuples, and built-in `P.*` guards. They intentionally do not support custom `P.when(...)` guards.
 - `.exhaustive()` throws `Error("Non-exhaustive match")` at runtime if no case matches.
 - `P.array` only checks that the value is an array; it does not validate item types.
 - Plain arrays check length at runtime; tuples get stronger type checks.

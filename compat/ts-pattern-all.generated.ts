@@ -51,7 +51,7 @@ const P = Object.assign(Object.create(null), localP, {
   select: unsupported('P.select'),
   not: localP.not,
   optional: unsupported('P.optional'),
-  union: unsupported('P.union'),
+  union: localP.union,
   intersection: unsupported('P.intersection'),
   array: unsupported('P.array'),
   set: unsupported('P.set'),

@@ -3,6 +3,7 @@ type Primitive = string | number | boolean | bigint | symbol | null | undefined;
 const wildcard = Symbol("match.wildcard");
 const guardTag = Symbol("match.guard");
 const notTag = Symbol("match.not");
+const unionTag = Symbol("match.union");
 const notSafeGuardTag = Symbol("match.notSafeGuard");
 
 export type Wildcard = typeof wildcard;
@@ -27,10 +28,18 @@ type NotPattern<Ptn = unknown> = {
 
 type AnyNotPattern = NotPattern<unknown>;
 
+type UnionPattern<Patterns extends readonly unknown[] = readonly unknown[]> = {
+  readonly [unionTag]: true;
+  readonly patterns: Patterns;
+};
+
+type AnyUnionPattern = UnionPattern<readonly unknown[]>;
+
 export type Pattern<T = unknown> =
   | Wildcard
   | AnyGuardPattern
   | AnyNotPattern
+  | AnyUnionPattern
   | (T extends Primitive ? T : never)
   | (T extends readonly unknown[] ? ArrayPattern<T> : never)
   | (T extends (...args: any[]) => unknown ? never : T extends object ? { readonly [K in keyof T]?: Pattern<T[K]> } : never);
@@ -70,6 +79,12 @@ function not<const Ptn>(pattern: ValidNotInput<Ptn>): NotPattern<Ptn> {
   return { [notTag]: true, pattern };
 }
 
+/** Matches any of the provided patterns. Custom `P.when(...)` guards are intentionally not supported inside `P.union(...)`. */
+function union<const Patterns extends readonly [unknown, ...unknown[]]>(...patterns: { readonly [K in keyof Patterns]: ValidNotInput<Patterns[K]> }): UnionPattern<Patterns> {
+  if (patterns.some(hasCustomGuardPattern)) throw new Error("P.union does not support P.when patterns");
+  return { [unionTag]: true, patterns };
+}
+
 export const P = {
   /** Matches any value. */
   _: wildcard,
@@ -77,6 +92,8 @@ export const P = {
   when,
   /** Negates a pattern, except custom `P.when(...)` guards. */
   not,
+  /** Matches any of the provided patterns, except custom `P.when(...)` guards. */
+  union,
   /** Matches instances of a class, like `Error`, `Date`, or your own class. */
   instanceOf,
   string: builtin((value: unknown): value is string => typeof value === "string"),
@@ -98,6 +115,7 @@ export type Narrow<T, Ptn> =
   Ptn extends Wildcard ? T :
   Ptn extends GuardPattern<infer U, boolean, boolean> ? NarrowGuard<T, U> :
   Ptn extends NotPattern<infer Inner> ? NarrowNot<T, Inner> :
+  Ptn extends UnionPattern<infer Patterns> ? NarrowUnion<T, Patterns> :
   Ptn extends readonly unknown[] ? T extends readonly unknown[] ? NarrowArray<T, Ptn> : never :
   Ptn extends object ? T extends object ? NarrowObject<T, Ptn> : never :
   Ptn extends T ? Ptn : Extract<T, Ptn>;
@@ -112,6 +130,8 @@ type NarrowGuard<T, U> =
 type NarrowObjectGuard<T, U> = [Extract<T, U>] extends [never] ? U extends T ? U : T extends U ? T : never : Extract<T, U>;
 
 type NarrowNot<T, Ptn> = Exclude<T, Narrow<T, Ptn>>;
+
+type NarrowUnion<T, Patterns extends readonly unknown[]> = Patterns[number] extends infer Ptn ? Narrow<T, Ptn> : never;
 
 type NarrowArray<T extends readonly unknown[], Ptn extends readonly unknown[]> =
   T extends readonly unknown[]
@@ -147,6 +167,7 @@ type NarrowObject<T, Ptn> =
 type HasBooleanGuard<Ptn> =
   Ptn extends GuardPattern<unknown, infer Narrows, boolean> ? Narrows extends true ? false : true :
   Ptn extends NotPattern<infer Inner> ? HasCustomGuard<Inner> :
+  Ptn extends UnionPattern<infer Patterns> ? true extends HasBooleanGuard<Patterns[number]> ? true : false :
   Ptn extends readonly (infer Item)[] ? true extends HasBooleanGuard<Item> ? true : false :
   Ptn extends object ? true extends { [K in keyof Ptn]: HasBooleanGuard<Ptn[K]> }[keyof Ptn] ? true : false :
   false;
@@ -154,20 +175,22 @@ type HasBooleanGuard<Ptn> =
 type HasCustomGuard<Ptn> =
   Ptn extends GuardPattern<unknown, boolean, infer SupportsNot> ? SupportsNot extends true ? false : true :
   Ptn extends NotPattern<infer Inner> ? HasCustomGuard<Inner> :
+  Ptn extends UnionPattern<infer Patterns> ? true extends HasCustomGuard<Patterns[number]> ? true : false :
   Ptn extends readonly (infer Item)[] ? true extends HasCustomGuard<Item> ? true : false :
   Ptn extends object ? true extends { [K in keyof Ptn]: HasCustomGuard<Ptn[K]> }[keyof Ptn] ? true : false :
   false;
 
-type HasInvalidNot<Ptn> =
-  Ptn extends NotPattern<infer Inner> ? HasCustomGuard<Inner> extends true ? true : HasInvalidNot<Inner> :
-  Ptn extends readonly (infer Item)[] ? true extends HasInvalidNot<Item> ? true : false :
-  Ptn extends object ? true extends { [K in keyof Ptn]: HasInvalidNot<Ptn[K]> }[keyof Ptn] ? true : false :
+type HasInvalidSpecial<Ptn> =
+  Ptn extends NotPattern<infer Inner> ? HasCustomGuard<Inner> extends true ? true : HasInvalidSpecial<Inner> :
+  Ptn extends UnionPattern<infer Patterns> ? HasCustomGuard<Patterns[number]> extends true ? true : HasInvalidSpecial<Patterns[number]> :
+  Ptn extends readonly (infer Item)[] ? true extends HasInvalidSpecial<Item> ? true : false :
+  Ptn extends object ? true extends { [K in keyof Ptn]: HasInvalidSpecial<Ptn[K]> }[keyof Ptn] ? true : false :
   false;
 
 type ValidNotInput<Ptn> = HasCustomGuard<Ptn> extends true ? never : Ptn;
 
 type Covered<T, Ptn> = HasBooleanGuard<Ptn> extends true ? never : Narrow<T, Ptn>;
-type ValidPattern<T, Ptn> = HasInvalidNot<Ptn> extends true ? never : IsNever<Narrow<T, Ptn>> extends true ? never : Ptn;
+type ValidPattern<T, Ptn> = HasInvalidSpecial<Ptn> extends true ? never : IsNever<Narrow<T, Ptn>> extends true ? never : Ptn;
 
 /** Phantom type used only to make incomplete `.exhaustive()` calls a type error. */
 type NonExhaustive<T> = {
@@ -239,6 +262,7 @@ function matches(pattern: unknown, value: unknown): boolean {
   if (pattern === wildcard) return true;
   if (isGuardPattern(pattern)) return pattern.guard(value);
   if (isNotPattern(pattern)) return !matches(pattern.pattern, value);
+  if (isUnionPattern(pattern)) return pattern.patterns.some((item) => matches(item, value));
 
   if (Array.isArray(pattern)) {
     return Array.isArray(value) && pattern.length === value.length && pattern.every((item, index) => matches(item, value[index]));
@@ -263,9 +287,14 @@ function isNotPattern(value: unknown): value is NotPattern {
   return isObject(value) && value[notTag] === true && "pattern" in value;
 }
 
+function isUnionPattern(value: unknown): value is UnionPattern {
+  return isObject(value) && value[unionTag] === true && Array.isArray(value.patterns);
+}
+
 function hasCustomGuardPattern(value: unknown): boolean {
   if (isGuardPattern(value)) return value[notSafeGuardTag] !== true;
   if (isNotPattern(value)) return hasCustomGuardPattern(value.pattern);
+  if (isUnionPattern(value)) return value.patterns.some(hasCustomGuardPattern);
   if (Array.isArray(value)) return value.some(hasCustomGuardPattern);
   if (isObject(value)) return Reflect.ownKeys(value).some((key) => hasCustomGuardPattern(value[key]));
   return false;

@@ -147,8 +147,16 @@ describe("match", () => {
     expect(match<Error | Date>(new Date(0)).with(P.not(P.instanceOf(Error)), (value) => value.toISOString()).with(P.instanceOf(Error), (value) => value.message).exhaustive()).toBe("1970-01-01T00:00:00.000Z");
   });
 
-  test("rejects P.when inside P.not", () => {
+  test("matches union patterns", () => {
+    expect(match<"idle" | "loading" | "error">("loading").with(P.union("idle", "loading"), () => "pending").with("error", () => "error").exhaustive()).toBe("pending");
+    expect(match<Event>({ type: "empty" }).with(P.union({ type: "ok" }, { type: "empty" }), () => "not-error").with({ type: "error" }, () => "error").exhaustive()).toBe("not-error");
+    expect(match<string | number | boolean>(123).with(P.union(P.string, P.number), (value) => typeof value).with(P.boolean, () => "boolean").exhaustive()).toBe("number");
+    expect(match<"idle" | "loading" | "error">("idle").with(P.union(P.not("error"), "error"), () => "covered").exhaustive()).toBe("covered");
+  });
+
+  test("rejects P.when inside P.not and P.union", () => {
     expect(() => P.not(P.when(() => true) as never)).toThrow("P.not does not support P.when patterns");
+    expect(() => P.union("ok", P.when(() => true) as never)).toThrow("P.union does not support P.when patterns");
   });
 
   test("matches null and undefined", () => {

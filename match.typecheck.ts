@@ -134,6 +134,46 @@ const notObjectPatternResult = match<Event>(event)
 
 assertEqual<typeof notObjectPatternResult, "not-error" | "error">(true);
 
+// `P.union(...)` groups several patterns into one branch and stays compatible with `.exhaustive()`.
+const unionPrimitiveResult = match<typeof primitive>(primitive)
+  .with(P.union(P.string, P.number), (value) => {
+    assertEqual<typeof value, string | number>(true);
+    return "string-or-number" as const;
+  })
+  .with(P.boolean, (value) => {
+    assertEqual<typeof value, boolean>(true);
+    return "boolean" as const;
+  })
+  .exhaustive();
+
+assertEqual<typeof unionPrimitiveResult, "string-or-number" | "boolean">(true);
+
+const unionObjectPatternResult = match<Event>(event)
+  .with(P.union({ type: "ok" }, { type: "empty" }), (event) => {
+    assertEqual<Simplify<typeof event>, { type: "ok"; value: number } | { type: "empty" }>(true);
+    return "not-error" as const;
+  })
+  .with({ type: "error" }, (event) => {
+    assertEqual<Simplify<typeof event>, { type: "error"; error: string }>(true);
+    return "error" as const;
+  })
+  .exhaustive();
+
+assertEqual<typeof unionObjectPatternResult, "not-error" | "error">(true);
+
+const notUnionResult = match<typeof primitive>(primitive)
+  .with(P.not(P.union(P.string, P.number)), (value) => {
+    assertEqual<typeof value, boolean>(true);
+    return "boolean" as const;
+  })
+  .with(P.union(P.string, P.number), (value) => {
+    assertEqual<typeof value, string | number>(true);
+    return "string-or-number" as const;
+  })
+  .exhaustive();
+
+assertEqual<typeof notUnionResult, "boolean" | "string-or-number">(true);
+
 declare const errorOrDate: Error | Date;
 
 // `P.instanceOf(...)` narrows class instances and can prove exhaustiveness.
@@ -290,6 +330,12 @@ P.not(P.when((value: unknown): value is string => typeof value === "string"));
 
 // @ts-expect-error P.not does not support custom P.when guards inside nested patterns
 P.not({ value: P.when(() => true) });
+
+// @ts-expect-error P.union does not support custom P.when guards
+P.union("ok", P.when((value: unknown): value is string => typeof value === "string"));
+
+// @ts-expect-error P.union does not support custom P.when guards inside nested patterns
+P.union({ value: P.when(() => true) }, "ok");
 
 declare const fn: () => number;
 
