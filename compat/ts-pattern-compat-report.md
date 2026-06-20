@@ -16,8 +16,8 @@ bun test ./compat/ts-pattern-all.generated.ts --reporter=junit --reporter-outfil
 Result:
 
 - total tests: 453
-- pass: 264
-- fail: 189
+- pass: 270
+- fail: 183
 
 This is a runtime compatibility harness, not a faithful type-test port. Bun does not typecheck tests, and the generated file includes small shims for upstream-only helpers and unsupported `ts-pattern` APIs so the suite can run far enough to show feature gaps.
 
@@ -32,7 +32,7 @@ Most failures are expected because this micro-library intentionally does not imp
 | `P.record` | 22 | Record/key-value pattern matching is not implemented. |
 | `P.not` edge cases | 6 | Basic negated patterns are supported; full `ts-pattern` negation semantics are not. |
 | `P.union` / `P.intersection` | 17+ | Pattern combinators are not implemented. |
-| `P.instanceOf` | 8 | Class instance matching is not implemented. |
+| `P.instanceOf` edge cases | 2 | Basic class matching is supported; full `ts-pattern` instance semantics are not. |
 | Chainable string/number/bigint guards | 20+ | No `.startsWith()`, `.between()`, `.optional()`, `.select()`, etc. |
 | Multiple patterns in one `.with(...)` | 5 | Only `.with(pattern, handler)` is supported. |
 | `.returnType()` and exhaustive fallback helpers | 4+ | Not implemented. |

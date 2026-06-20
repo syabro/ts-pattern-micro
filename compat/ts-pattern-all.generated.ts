@@ -57,7 +57,7 @@ const P = Object.assign(Object.create(null), localP, {
   set: unsupported('P.set'),
   map: unsupported('P.map'),
   record: unsupported('P.record'),
-  instanceOf: unsupported('P.instanceOf'),
+  instanceOf: localP.instanceOf,
   shape: unsupported('P.shape'),
 }) as any;
 

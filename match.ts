@@ -50,6 +50,12 @@ function builtin<T>(guard: (value: unknown) => value is T): GuardPattern<T, true
   return guardPattern<T, true, true>(guard, true);
 }
 
+type Constructor<T> = abstract new (...args: any[]) => T;
+
+function instanceOf<C extends Constructor<unknown>>(klass: C): GuardPattern<InstanceType<C>, true, true> {
+  return builtin((value: unknown): value is InstanceType<C> => value instanceof klass);
+}
+
 /** Creates a guard pattern that narrows handler types and can prove exhaustiveness. */
 function when<T, U extends T>(guard: (value: T) => value is U): GuardPattern<U, true, false>;
 /** Creates a runtime-only guard pattern. It does not narrow types or prove exhaustiveness. */
@@ -71,6 +77,8 @@ export const P = {
   when,
   /** Negates a pattern, except custom `P.when(...)` guards. */
   not,
+  /** Matches instances of a class, like `Error`, `Date`, or your own class. */
+  instanceOf,
   string: builtin((value: unknown): value is string => typeof value === "string"),
   number: builtin((value: unknown): value is number => typeof value === "number"),
   boolean: builtin((value: unknown): value is boolean => typeof value === "boolean"),
@@ -97,9 +105,11 @@ export type Narrow<T, Ptn> =
 type NarrowGuard<T, U> =
   T extends unknown
     ? U extends unknown
-      ? unknown extends T ? U : unknown extends U ? T : T extends Primitive ? U extends Primitive ? T & U : never : U extends Primitive ? never : T & U
+      ? unknown extends T ? U : unknown extends U ? T : T extends Primitive ? U extends Primitive ? T & U : never : U extends Primitive ? never : NarrowObjectGuard<T, U>
       : never
     : never;
+
+type NarrowObjectGuard<T, U> = [Extract<T, U>] extends [never] ? U extends T ? U : T extends U ? T : never : Extract<T, U>;
 
 type NarrowNot<T, Ptn> = Exclude<T, Narrow<T, Ptn>>;
 

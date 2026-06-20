@@ -134,6 +134,36 @@ const notObjectPatternResult = match<Event>(event)
 
 assertEqual<typeof notObjectPatternResult, "not-error" | "error">(true);
 
+declare const errorOrDate: Error | Date;
+
+// `P.instanceOf(...)` narrows class instances and can prove exhaustiveness.
+const instanceOfResult = match<typeof errorOrDate>(errorOrDate)
+  .with(P.instanceOf(Date), (value) => {
+    assertEqual<typeof value, Date>(true);
+    return value.toISOString();
+  })
+  .with(P.instanceOf(Error), (value) => {
+    assertEqual<typeof value, Error>(true);
+    return value.message;
+  })
+  .exhaustive();
+
+assertEqual<typeof instanceOfResult, string>(true);
+
+// `P.not(...)` can negate built-in guards, including `P.instanceOf(...)`.
+const notInstanceOfResult = match<typeof errorOrDate>(errorOrDate)
+  .with(P.not(P.instanceOf(Error)), (value) => {
+    assertEqual<typeof value, Date>(true);
+    return value.toISOString();
+  })
+  .with(P.instanceOf(Error), (value) => {
+    assertEqual<typeof value, Error>(true);
+    return value.message;
+  })
+  .exhaustive();
+
+assertEqual<typeof notInstanceOfResult, string>(true);
+
 declare const unknownValue: unknown;
 
 // Built-in value guards also work from `unknown`.

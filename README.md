@@ -54,12 +54,22 @@ const result = match(event as Event)
   .exhaustive();
 ```
 
+Use `P.instanceOf(...)` for classes:
+
+```ts
+const message = match(value as unknown)
+  .with(P.instanceOf(Error), (error) => error.message)
+  .with(P.instanceOf(Date), (date) => date.toISOString())
+  .otherwise(() => null);
+```
+
 ## What it supports
 
 - primitive patterns: strings, numbers, booleans, bigint, symbols, `null`, `undefined`
 - partial object patterns: `{ type: "ok" }`
 - tuple/array patterns: `["set", P._]`
 - array guard: `P.array`
+- class guard: `P.instanceOf(...)`
 - wildcard: `P._`
 - negated patterns: `P.not(...)`
 - guards: `P.when(...)`, `.when(...)`

@@ -130,10 +130,21 @@ describe("match", () => {
     expect(match<unknown>({ length: 2 }).with(P.array, (value) => value.length).otherwise(() => 0)).toBe(0);
   });
 
+  test("matches instanceOf patterns", () => {
+    class CustomError extends Error {
+      code = "custom";
+    }
+
+    expect(match<unknown>(new Date(0)).with(P.instanceOf(Date), (value) => value.toISOString()).otherwise(() => null)).toBe("1970-01-01T00:00:00.000Z");
+    expect(match<unknown>(new CustomError("boom")).with(P.instanceOf(CustomError), (value) => value.code).otherwise(() => null)).toBe("custom");
+    expect(match<unknown>({ message: "boom" }).with(P.instanceOf(Error), (value) => value.message).otherwise(() => "plain")).toBe("plain");
+  });
+
   test("matches negated patterns", () => {
     expect(match<"idle" | "error">("idle").with(P.not("error"), () => "not-error").with("error", () => "error").exhaustive()).toBe("not-error");
     expect(match<Event>({ type: "ok", value: 1 }).with(P.not({ type: "error" }), () => "not-error").with({ type: "error" }, () => "error").exhaustive()).toBe("not-error");
     expect(match<string | number>(123).with(P.not(P.string), (value) => value + 1).with(P.string, (value) => value.length).exhaustive()).toBe(124);
+    expect(match<Error | Date>(new Date(0)).with(P.not(P.instanceOf(Error)), (value) => value.toISOString()).with(P.instanceOf(Error), (value) => value.message).exhaustive()).toBe("1970-01-01T00:00:00.000Z");
   });
 
   test("rejects P.when inside P.not", () => {
