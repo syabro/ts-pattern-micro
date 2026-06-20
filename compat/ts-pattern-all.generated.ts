@@ -2,7 +2,7 @@
 // Do not include this file in the normal project check; run it explicitly.
 
 import { describe, expect, it } from 'bun:test';
-import { match as localMatch, NonExhaustiveError, P as localP, type Pattern as LocalPattern } from '../match';
+import { match as localMatch, NonExhaustiveError, P as localP, type Pattern as LocalPattern } from '../ts-pattern-micro';
 
 type Equal<A, B> =
   (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2)

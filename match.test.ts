@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { match, NonExhaustiveError, P } from "./match";
+import { match, NonExhaustiveError, P } from "./ts-pattern-micro";
 
 type Event =
   | { type: "ok"; value: number }

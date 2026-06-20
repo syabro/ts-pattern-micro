@@ -1,6 +1,6 @@
 # ts-pattern-micro
 
-**YOU ONLY NEED ONE FILE FROM THIS REPOSITORY: `match.ts`.**
+**YOU ONLY NEED ONE FILE FROM THIS REPOSITORY: `ts-pattern-micro.ts`.**
 
 Single-file, zero-dependency pattern matching for TypeScript.
 
@@ -11,13 +11,13 @@ Use it when you want `ts-pattern`-style matching without adding a package depend
 No npm package needed. Download the file into your project:
 
 ```bash
-wget -O match.ts https://raw.githubusercontent.com/syabro/ts-pattern-micro/main/match.ts
+wget -O ts-pattern-micro.ts https://raw.githubusercontent.com/syabro/ts-pattern-micro/main/ts-pattern-micro.ts
 ```
 
 ## Quick start
 
 ```ts
-import { match, P } from "./match";
+import { match, P } from "./ts-pattern-micro";
 
 type Event =
   | { type: "ok"; value: number }

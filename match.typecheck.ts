@@ -1,4 +1,4 @@
-import { match, P, type Narrow } from "./match";
+import { match, P, type Narrow } from "./ts-pattern-micro";
 
 // This file is checked by `tsc --noEmit`.
 // Every `assertEqual<Actual, Expected>(true)` line is a compile-time test.
